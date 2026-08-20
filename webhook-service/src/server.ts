@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import webhookRoutes from "./routes/webhook.routes.js";
 
 dotenv.config();
 
@@ -12,6 +13,8 @@ app.get("/", (req, res) => {
     message: "Webhook service is running",
   });
 });
+
+app.use("/webhooks", webhookRoutes);
 
 const PORT = process.env.PORT || 3000;
 
