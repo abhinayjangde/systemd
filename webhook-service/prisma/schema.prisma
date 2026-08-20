@@ -20,7 +20,7 @@ model WebhookEndpoint {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  events Event[]
+  deliveries WebhookDelivery[]
 }
 
 model Event {
@@ -29,6 +29,23 @@ model Event {
   payload     Json
   createdAt   DateTime @default(now())
 
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id          String   @id @default(cuid())
+
+  eventId     String
   webhookId   String
+
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  lastError   String?
+  deliveredAt DateTime?
+  createdAt   DateTime @default(now())
+
+  event       Event           @relation(fields: [eventId], references: [id])
   webhook     WebhookEndpoint @relation(fields: [webhookId], references: [id])
+
+  @@unique([eventId, webhookId])
 }

@@ -54,7 +54,7 @@ router.get("/:id", async (req, res) => {
     try {
         const id = req.params.id;
 
-        const webhooks = await prisma.webhookEndpoint.findMany({
+        const webhooks = await prisma.webhookEndpoint.findUnique({
             where: {
                 id
             },
@@ -66,7 +66,7 @@ router.get("/:id", async (req, res) => {
             }
         });
 
-        if(webhooks.length < 1){
+        if(!webhooks){
             return res.status(404).json({message:"webhook doesn't exists"})
         }
         return res.status(200).json(webhooks)

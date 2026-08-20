@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import webhookRoutes from "./routes/webhook.routes.js";
+import eventRoutes from "./routes/event.routes.js";
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/webhooks", webhookRoutes);
-
+app.use("/events", eventRoutes);
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
