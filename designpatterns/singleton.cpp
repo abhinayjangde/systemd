@@ -4,13 +4,17 @@ using namespace std;
 class Singleton{
     private:
         static Singleton* instance;
+        static mutex mtx;
         Singleton(){
             cout << "singleton constructor called." << endl;
         }
     public:
         static Singleton* getInstance(){
             if(instance == nullptr){
-                instance = new Singleton();
+                lock_guard<mutex> lock(mtx);
+                if(instance == nullptr){
+                    instance = new Singleton();
+                }
             }
             return instance;
         }
