@@ -9,22 +9,24 @@ import (
 
 	"github.com/abhinayjangde/notification-system/internal/config"
 	"github.com/abhinayjangde/notification-system/internal/db"
+	"github.com/abhinayjangde/notification-system/internal/handlers"
 )
 
 func main() {
 	cfg := config.MustLoad()
 
-	database, err := db.Connect(cfg.DatabaseURL)
+	db, err := db.Connect(cfg.DatabaseURL)
+
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer database.Close()
+	defer db.Close()
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /notifications", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`notification created`))
-	})
+	// Notification handlers
+	nh := handlers.NewNotificationHandler(db)
+	mux.HandleFunc("POST /notifications", nh.Create)
 
 	log.Println("starting server", "port", cfg.Port)
 
