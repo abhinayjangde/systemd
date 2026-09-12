@@ -241,6 +241,7 @@ func (nh *NotificationHandler) Patch(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	// only authenticated user can call this endpoint/can update notification read
 	recipientID := r.URL.Query().Get("recipient_id")
+	// And later, when we add authentication, we should remove recipient_id from the query parameter and get the user ID from the authenticated request context instead.
 
 	if id == "" {
 		http.Error(
