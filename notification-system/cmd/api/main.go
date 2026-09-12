@@ -8,10 +8,17 @@ import (
 	"log"
 
 	"github.com/abhinayjangde/notification-system/internal/config"
+	"github.com/abhinayjangde/notification-system/internal/db"
 )
 
 func main() {
 	cfg := config.MustLoad()
+
+	database, err := db.Connect(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer database.Close()
 
 	mux := http.NewServeMux()
 

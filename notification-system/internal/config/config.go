@@ -11,7 +11,7 @@ import (
 type Config struct {
 	Port        string `env:"PORT" envDefault:"8000"`
 	Env         string `env:"ENV" envDefault:"local"`
-	DatabaseUrl string `env:"DATABASE_URL,required"`
+	DatabaseURL string `env:"DATABASE_URL,required"`
 }
 
 func MustLoad() *Config {
