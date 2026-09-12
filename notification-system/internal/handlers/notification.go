@@ -235,3 +235,68 @@ func (nh *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func (nh *NotificationHandler) Patch(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := r.PathValue("id")
+	// only authenticated user can call this endpoint/can update notification read
+	recipientID := r.URL.Query().Get("recipient_id")
+
+	if id == "" {
+		http.Error(
+			w,
+			"notification id is required",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	if recipientID == "" {
+		http.Error(
+			w,
+			"recipient_id is required",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
+	result, err := nh.db.ExecContext(ctx, `
+		UPDATE notifications
+		SET read_at = NOW()
+		WHERE id = $1
+		  AND recipient_id = $2
+		  AND read_at IS NULL
+	`, id, recipientID)
+
+	if err != nil {
+		fmt.Println("mark notification as read error:", err)
+
+		http.Error(
+			w,
+			"internal server error",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(
+			w,
+			"internal server error",
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(
+			w,
+			"notification not found",
+			http.StatusNotFound,
+		)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

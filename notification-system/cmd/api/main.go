@@ -28,6 +28,7 @@ func main() {
 	nh := handlers.NewNotificationHandler(db)
 	mux.HandleFunc("POST /notifications", nh.Create)
 	mux.HandleFunc("GET /notifications", nh.List)
+	mux.HandleFunc("PATCH /notifications/{id}/read", nh.Patch)
 
 	log.Println("starting server", "port", cfg.Port)
 
