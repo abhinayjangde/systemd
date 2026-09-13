@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"log"
@@ -30,17 +34,34 @@ func main() {
 	mux.HandleFunc("GET /notifications", nh.List)
 	mux.HandleFunc("PATCH /notifications/{id}/read", nh.Patch)
 
-	log.Println("starting server", "port", cfg.Port)
-
-	srv := http.Server{
+	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      mux,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 30,
 		IdleTimeout:  time.Second * 60,
 	}
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatal("server stopped", "err", err)
-		os.Exit(1)
+
+	// this keeps main thread alive and allows the server to run in the background
+	go func() {
+		log.Println("starting server", "port", cfg.Port)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Server forced to close: %v\n", err)
+		}
+	}()
+
+	shutdown := make(chan os.Signal, 1)
+
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-shutdown
+	log.Printf("Received signal: %v. Initiating graceful shutdown...\n", sig)
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Graceful shutdown failed: %v\n", err)
 	}
+
+	log.Println("Server exited cleanly.")
 }
