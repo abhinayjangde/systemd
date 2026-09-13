@@ -10,16 +10,30 @@ import (
 	"github.com/abhinayjangde/notification-system/internal/config"
 	"github.com/abhinayjangde/notification-system/internal/db"
 	"github.com/abhinayjangde/notification-system/internal/kafka"
+	"github.com/abhinayjangde/notification-system/internal/notification"
 )
 
 func main() {
 	cfg := config.MustLoad()
 
-	db, err := db.Connect(cfg.DatabaseURL)
+	database, err := db.Connect(cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	defer database.Close()
+
+	repository := notification.NewPostgresRepository(database)
+
+	service := notification.NewService(repository)
+
+	consumer := kafka.NewConsumer(
+		"localhost:9092",
+		"notifications",
+		"notification-service",
+		service,
+	)
+
+	defer consumer.Close()
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -27,15 +41,6 @@ func main() {
 		syscall.SIGTERM,
 	)
 	defer stop()
-
-	consumer := kafka.NewConsumer(
-		"localhost:9092",
-		"notifications",
-		"notification-service",
-		db,
-	)
-
-	defer consumer.Close()
 
 	log.Println("notification consumer started")
 

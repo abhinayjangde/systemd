@@ -1,4 +1,4 @@
-package models
+package notification
 
 import (
 	"encoding/json"

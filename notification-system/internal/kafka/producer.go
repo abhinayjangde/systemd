@@ -4,18 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
+	"github.com/abhinayjangde/notification-system/internal/events"
 	"github.com/segmentio/kafka-go"
 )
 
-type NotificationEvent struct {
-	EventID     string          `json:"event_id"`
-	EventType   string          `json:"event_type"`
-	RecipientID string          `json:"recipient_id"`
-	Data        json.RawMessage `json:"data"`
-	CreatedAt   time.Time       `json:"created_at"`
-}
+type NotificationEvent = events.NotificationEvent
 
 type Producer struct {
 	writer *kafka.Writer
