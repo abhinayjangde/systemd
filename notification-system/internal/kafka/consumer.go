@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,12 +12,14 @@ import (
 
 type Consumer struct {
 	reader *kafka.Reader
+	db     *sql.DB
 }
 
 func NewConsumer(
 	brokerURL string,
 	topic string,
 	groupID string,
+	db *sql.DB,
 ) *Consumer {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: []string{brokerURL},
@@ -31,6 +34,7 @@ func NewConsumer(
 
 	return &Consumer{
 		reader: reader,
+		db:     db,
 	}
 }
 
@@ -53,11 +57,13 @@ func (c *Consumer) Consume(ctx context.Context) error {
 			continue
 		}
 
+		if err := c.saveNotification(ctx, event); err != nil {
+			return err
+		}
+
 		log.Printf(
-			"received event: event_id=%s event_type=%s recipient_id=%s partition=%d offset=%d",
+			"notification saved: event_id=%s partition=%d offset=%d",
 			event.EventID,
-			event.EventType,
-			event.RecipientID,
 			message.Partition,
 			message.Offset,
 		)
@@ -66,4 +72,37 @@ func (c *Consumer) Consume(ctx context.Context) error {
 
 func (c *Consumer) Close() error {
 	return c.reader.Close()
+}
+
+func (c *Consumer) saveNotification(
+	ctx context.Context,
+	event NotificationEvent,
+) error {
+	_, err := c.db.ExecContext(ctx, `
+		INSERT INTO notifications (
+			event_id,
+			recipient_id,
+			type,
+			title,
+			body,
+			data,
+			created_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (event_id) DO NOTHING
+	`,
+		event.EventID,
+		event.RecipientID,
+		event.EventType,
+		"Notification",
+		"An event occurred",
+		event.Data,
+		event.CreatedAt,
+	)
+
+	if err != nil {
+		return fmt.Errorf("save notification: %w", err)
+	}
+
+	return nil
 }

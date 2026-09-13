@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/abhinayjangde/notification-system/internal/kafka"
+	"github.com/google/uuid"
 )
 
 func main() {
@@ -18,14 +19,14 @@ func main() {
 	defer producer.Close()
 
 	event := kafka.NotificationEvent{
-		EventID:     "550e8400-e29b-41d4-a716-446655440000",
+		EventID:     uuid.NewString(),
 		EventType:   "ORDER_SHIPPED",
-		RecipientID: "user-129",
+		RecipientID: uuid.NewString(),
 		Data: json.RawMessage(`{
 			"order_id": "order-458",
 			"tracking_id": "TRACK127"
 		}`),
-		CreatedAt: time.Now().Local().String(),
+		CreatedAt: time.Now(),
 	}
 
 	ctx := context.Background()

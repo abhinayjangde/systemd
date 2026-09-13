@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -13,7 +14,7 @@ type NotificationEvent struct {
 	EventType   string          `json:"event_type"`
 	RecipientID string          `json:"recipient_id"`
 	Data        json.RawMessage `json:"data"`
-	CreatedAt   string          `json:"created_at"`
+	CreatedAt   time.Time       `json:"created_at"`
 }
 
 type Producer struct {

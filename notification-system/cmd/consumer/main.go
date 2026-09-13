@@ -7,10 +7,20 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/abhinayjangde/notification-system/internal/config"
+	"github.com/abhinayjangde/notification-system/internal/db"
 	"github.com/abhinayjangde/notification-system/internal/kafka"
 )
 
 func main() {
+	cfg := config.MustLoad()
+
+	db, err := db.Connect(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
@@ -22,6 +32,7 @@ func main() {
 		"localhost:9092",
 		"notifications",
 		"notification-service",
+		db,
 	)
 
 	defer consumer.Close()
