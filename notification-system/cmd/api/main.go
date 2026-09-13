@@ -29,8 +29,8 @@ func main() {
 
 	// Initialize Kafka producer
 	producer := kafka.NewProducer(
-		"localhost:9092",
-		"notifications",
+		cfg.KafkaBrokerURL,
+		cfg.KafkaTopic,
 	)
 	defer producer.Close()
 

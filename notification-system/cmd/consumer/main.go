@@ -27,9 +27,9 @@ func main() {
 	service := notification.NewService(repository)
 
 	consumer := kafka.NewConsumer(
-		"localhost:9092",
-		"notifications",
-		"notification-service",
+		cfg.KafkaBrokerURL,
+		cfg.KafkaTopic,
+		cfg.KafkaConsumerGroup,
 		service,
 	)
 

@@ -6,14 +6,17 @@ import (
 	"log"
 	"time"
 
+	"github.com/abhinayjangde/notification-system/internal/config"
 	"github.com/abhinayjangde/notification-system/internal/kafka"
 	"github.com/google/uuid"
 )
 
 func main() {
+	cfg := config.MustLoad()
+
 	producer := kafka.NewProducer(
-		"localhost:9092",
-		"notifications",
+		cfg.KafkaBrokerURL,
+		cfg.KafkaTopic,
 	)
 
 	defer producer.Close()
