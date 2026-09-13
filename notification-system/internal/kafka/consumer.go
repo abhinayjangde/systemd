@@ -40,7 +40,7 @@ func NewConsumer(
 
 func (c *Consumer) Consume(ctx context.Context) error {
 	for {
-		message, err := c.reader.ReadMessage(ctx)
+		message, err := c.reader.FetchMessage(ctx)
 		if err != nil {
 			return fmt.Errorf("read kafka message: %w", err)
 		}
@@ -59,6 +59,10 @@ func (c *Consumer) Consume(ctx context.Context) error {
 
 		if err := c.saveNotification(ctx, event); err != nil {
 			return err
+		}
+
+		if err := c.reader.CommitMessages(ctx, message); err != nil {
+			return fmt.Errorf("commit kafka message: %w", err)
 		}
 
 		log.Printf(
