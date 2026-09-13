@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/abhinayjangde/notification-system/internal/httpx"
 )
 
 type NotificationHandler struct {
@@ -55,14 +57,7 @@ func (nh *NotificationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	// response
-	if err := json.NewEncoder(w).Encode(out); err != nil {
-		fmt.Println("Encode error:", err.Error())
-		http.Error(w, "invalid json res data", http.StatusInternalServerError)
-		return
-	}
+	httpx.WriteJSON(w, http.StatusCreated, out)
 }
 
 func (nh *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -228,11 +223,7 @@ func (nh *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {
 		notifications.NextCursor = nextCursor
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	if err := json.NewEncoder(w).Encode(notifications); err != nil {
-		fmt.Println("encode response error:", err)
-	}
+	httpx.WriteJSON(w, http.StatusOK, notifications)
 
 }
 
