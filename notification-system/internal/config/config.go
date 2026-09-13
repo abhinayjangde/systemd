@@ -15,6 +15,8 @@ type Config struct {
 	KafkaBrokerURL     string `env:"KAFKA_BROKER_URL,required"`
 	KafkaTopic         string `env:"KAFKA_TOPIC,required"`
 	KafkaConsumerGroup string `env:"KAFKA_CONSUMER_GROUP,required"`
+	KafkaDLQTopic      string `env:"KAFKA_DLQ_TOPIC,required"`
+	KafkaMaxRetries    int    `env:"KAFKA_MAX_RETRIES" envDefault:"3"`
 }
 
 func MustLoad() *Config {

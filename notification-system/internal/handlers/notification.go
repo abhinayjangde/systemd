@@ -1,22 +1,32 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/abhinayjangde/notification-system/internal/events"
 	"github.com/abhinayjangde/notification-system/internal/httpx"
+	"github.com/google/uuid"
 )
 
-type NotificationHandler struct {
-	db *sql.DB
+type EventPublisher interface {
+	Publish(context.Context, events.NotificationEvent) error
 }
 
-func NewNotificationHandler(db *sql.DB) *NotificationHandler {
+type NotificationHandler struct {
+	db        *sql.DB
+	publisher EventPublisher
+}
+
+func NewNotificationHandler(db *sql.DB, publisher EventPublisher) *NotificationHandler {
 	return &NotificationHandler{
-		db: db,
+		db:        db,
+		publisher: publisher,
 	}
 }
 
@@ -43,21 +53,23 @@ func (nh *NotificationHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// inserting in db
-	var out NotificationResponse
-	err := nh.db.QueryRowContext(ctx, `
-		INSERT INTO notifications (recipient_id, type, title, body, data)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, created_at
-	`, req.RecipientID, req.Type, req.Title, req.Body, req.Data).Scan(&out.ID, &out.CreatedAt)
+	event := events.NotificationEvent{
+		EventID:     uuid.NewString(),
+		EventType:   req.Type,
+		RecipientID: req.RecipientID,
+		Title:       req.Title,
+		Body:        req.Body,
+		Data:        req.Data,
+		CreatedAt:   time.Now().UTC(),
+	}
 
-	if err != nil {
-		fmt.Println("Insert notification error:", err.Error())
-		http.Error(w, "inserting notifications error", http.StatusInternalServerError)
+	if err := nh.publisher.Publish(ctx, event); err != nil {
+		fmt.Println("publish notification event error:", err)
+		http.Error(w, "publishing notification event error", http.StatusInternalServerError)
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusCreated, out)
+	httpx.WriteJSON(w, http.StatusAccepted, NotificationResponse{EventID: event.EventID})
 }
 
 func (nh *NotificationHandler) List(w http.ResponseWriter, r *http.Request) {

@@ -30,6 +30,8 @@ func main() {
 		cfg.KafkaBrokerURL,
 		cfg.KafkaTopic,
 		cfg.KafkaConsumerGroup,
+		cfg.KafkaDLQTopic,
+		cfg.KafkaMaxRetries,
 		service,
 	)
 

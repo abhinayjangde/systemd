@@ -38,7 +38,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Notification handlers
-	nh := handlers.NewNotificationHandler(db)
+	nh := handlers.NewNotificationHandler(db, producer)
 	mux.HandleFunc("POST /notifications", nh.Create)
 	mux.HandleFunc("GET /notifications", nh.List)
 	mux.HandleFunc("PATCH /notifications/{id}/read", nh.Patch)

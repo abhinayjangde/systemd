@@ -3,9 +3,12 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"time"
 
+	"github.com/abhinayjangde/notification-system/internal/events"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -17,14 +20,19 @@ type EventHandler interface {
 }
 
 type Consumer struct {
-	reader  *kafka.Reader
-	handler EventHandler
+	reader     *kafka.Reader
+	dlqWriter  *kafka.Writer
+	dlqTopic   string
+	handler    EventHandler
+	maxRetries int
 }
 
 func NewConsumer(
 	brokerURL string,
 	topic string,
 	groupID string,
+	dlqTopic string,
+	maxRetries int,
 	handler EventHandler,
 ) *Consumer {
 	reader := kafka.NewReader(kafka.ReaderConfig{
@@ -33,16 +41,30 @@ func NewConsumer(
 		GroupID:     groupID,
 		StartOffset: kafka.FirstOffset,
 	})
+	dlqWriter := &kafka.Writer{
+		Addr:     kafka.TCP(brokerURL),
+		Topic:    dlqTopic,
+		Balancer: &kafka.Hash{},
+	}
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
 
 	return &Consumer{
-		reader:  reader,
-		handler: handler,
+		reader:     reader,
+		dlqWriter:  dlqWriter,
+		dlqTopic:   dlqTopic,
+		handler:    handler,
+		maxRetries: maxRetries,
 	}
 }
 func (c *Consumer) Consume(ctx context.Context) error {
 	for {
 		message, err := c.reader.FetchMessage(ctx)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil
+			}
 			return fmt.Errorf("fetch kafka message: %w", err)
 		}
 
@@ -50,20 +72,44 @@ func (c *Consumer) Consume(ctx context.Context) error {
 
 		if err := json.Unmarshal(message.Value, &event); err != nil {
 			log.Printf(
-				"invalid kafka message: partition=%d offset=%d error=%v",
+				"invalid kafka message, sending to DLQ: partition=%d offset=%d error=%v",
 				message.Partition,
 				message.Offset,
 				err,
 			)
+			if err := c.deadLetter(ctx, message, err, 0); err != nil {
+				return err
+			}
 			continue
 		}
 
-		if err := c.handler.ProcessEvent(ctx, event); err != nil {
-			return fmt.Errorf(
-				"process event %s: %w",
+		var processErr error
+		attempts := 0
+		for attempt := 0; ; attempt++ {
+			attempts++
+			processErr = c.handler.ProcessEvent(ctx, event)
+			if processErr == nil {
+				break
+			}
+			if events.IsPermanent(processErr) || attempt >= c.maxRetries {
+				break
+			}
+
+			if err := waitForRetry(ctx, attempt); err != nil {
+				return err
+			}
+		}
+
+		if processErr != nil {
+			if err := c.deadLetter(ctx, message, processErr, attempts); err != nil {
+				return err
+			}
+			log.Printf(
+				"event sent to DLQ: event_id=%s error=%v",
 				event.EventID,
-				err,
+				processErr,
 			)
+			continue
 		}
 
 		if err := c.reader.CommitMessages(ctx, message); err != nil {
@@ -83,38 +129,70 @@ func (c *Consumer) Consume(ctx context.Context) error {
 }
 
 func (c *Consumer) Close() error {
-	return c.reader.Close()
+	readerErr := c.reader.Close()
+	writerErr := c.dlqWriter.Close()
+	if readerErr != nil {
+		return readerErr
+	}
+	return writerErr
 }
 
-// func (c *Consumer) saveNotification(
-// 	ctx context.Context,
-// 	event NotificationEvent,
-// ) error {
-// 	_, err := c.handler.ExecContext(ctx, `
-// 		INSERT INTO notifications (
-// 			event_id,
-// 			recipient_id,
-// 			type,
-// 			title,
-// 			body,
-// 			data,
-// 			created_at
-// 		)
-// 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-// 		ON CONFLICT (event_id) DO NOTHING
-// 	`,
-// 		event.EventID,
-// 		event.RecipientID,
-// 		event.EventType,
-// 		"Notification",
-// 		"An event occurred",
-// 		event.Data,
-// 		event.CreatedAt,
-// 	)
+type deadLetterMessage struct {
+	OriginalValue []byte    `json:"original_value"`
+	Error         string    `json:"error"`
+	Attempts      int       `json:"attempts"`
+	Partition     int       `json:"partition"`
+	Offset        int64     `json:"offset"`
+	FailedAt      time.Time `json:"failed_at"`
+}
 
-// 	if err != nil {
-// 		return fmt.Errorf("save notification: %w", err)
-// 	}
+func (c *Consumer) deadLetter(
+	ctx context.Context,
+	message kafka.Message,
+	reason error,
+	attempts int,
+) error {
+	payload, err := json.Marshal(deadLetterMessage{
+		OriginalValue: message.Value,
+		Error:         reason.Error(),
+		Attempts:      attempts,
+		Partition:     message.Partition,
+		Offset:        message.Offset,
+		FailedAt:      time.Now().UTC(),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal dead-letter message: %w", err)
+	}
 
-// 	return nil
-// }
+	if err := c.dlqWriter.WriteMessages(ctx, kafka.Message{
+		Key:   message.Key,
+		Value: payload,
+	}); err != nil {
+		return fmt.Errorf("publish message to DLQ %q: %w", c.dlqTopic, err)
+	}
+
+	if err := c.reader.CommitMessages(ctx, message); err != nil {
+		return fmt.Errorf("commit dead-lettered message: %w", err)
+	}
+	return nil
+}
+
+func waitForRetry(ctx context.Context, attempt int) error {
+	delay := 100 * time.Millisecond * time.Duration(1<<min(attempt, 5))
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func min(left, right int) int {
+	if left < right {
+		return left
+	}
+	return right
+}

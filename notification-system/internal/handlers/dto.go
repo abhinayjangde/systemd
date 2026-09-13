@@ -14,8 +14,7 @@ type NotificationRequest struct {
 }
 
 type NotificationResponse struct {
-	ID        string    `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
+	EventID string `json:"event_id"`
 }
 
 type NotificationListResponse struct {

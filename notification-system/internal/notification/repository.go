@@ -36,8 +36,8 @@ func (r *PostgresRepository) CreateFromEvent(
 		event.EventID,
 		event.RecipientID,
 		event.EventType,
-		"Notification",
-		"An event occurred",
+		event.Title,
+		event.Body,
 		event.Data,
 		event.CreatedAt,
 	)

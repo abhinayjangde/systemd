@@ -2,7 +2,6 @@ package notification
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/abhinayjangde/notification-system/internal/events"
 )
@@ -28,15 +27,23 @@ func (s *Service) ProcessEvent(
 	event Event,
 ) error {
 	if event.EventID == "" {
-		return fmt.Errorf("event_id is required")
+		return events.NewPermanentError("event_id is required")
 	}
 
 	if event.EventType == "" {
-		return fmt.Errorf("event_type is required")
+		return events.NewPermanentError("event_type is required")
 	}
 
 	if event.RecipientID == "" {
-		return fmt.Errorf("recipient_id is required")
+		return events.NewPermanentError("recipient_id is required")
+	}
+
+	if event.Title == "" {
+		return events.NewPermanentError("title is required")
+	}
+
+	if event.Body == "" {
+		return events.NewPermanentError("body is required")
 	}
 
 	return s.repository.CreateFromEvent(ctx, event)
