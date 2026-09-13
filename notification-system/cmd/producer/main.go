@@ -18,7 +18,7 @@ func main() {
 	defer producer.Close()
 
 	event := kafka.NotificationEvent{
-		EventID:     "evt-002",
+		EventID:     "550e8400-e29b-41d4-a716-446655440000",
 		EventType:   "ORDER_SHIPPED",
 		RecipientID: "user-129",
 		Data: json.RawMessage(`{
