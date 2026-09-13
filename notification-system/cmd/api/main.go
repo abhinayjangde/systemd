@@ -14,6 +14,7 @@ import (
 	"github.com/abhinayjangde/notification-system/internal/config"
 	"github.com/abhinayjangde/notification-system/internal/db"
 	"github.com/abhinayjangde/notification-system/internal/handlers"
+	"github.com/abhinayjangde/notification-system/internal/kafka"
 )
 
 func main() {
@@ -26,6 +27,14 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize Kafka producer
+	producer := kafka.NewProducer(
+		"localhost:9092",
+		"notifications",
+	)
+	defer producer.Close()
+
+	// mux is the HTTP request multiplexer that matches incoming requests to their respective handler functions.
 	mux := http.NewServeMux()
 
 	// Notification handlers
