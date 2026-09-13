@@ -20,9 +20,9 @@ func main() {
 	event := kafka.NotificationEvent{
 		EventID:     "evt-002",
 		EventType:   "ORDER_SHIPPED",
-		RecipientID: "user-123",
+		RecipientID: "user-129",
 		Data: json.RawMessage(`{
-			"order_id": "order-457",
+			"order_id": "order-458",
 			"tracking_id": "TRACK127"
 		}`),
 		CreatedAt: time.Now().Local().String(),
